@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                           http://www.springframework.org/schema/beans/spring-beans.xsd
+                           http://www.springframework.org/schema/rabbit
+                           http://www.springframework.org/schema/rabbit/spring-rabbit.xsd">
+
+    <rabbit:connection-factory id="connectionFactory"
+                               host="192.168.1.188"
+                               virtual-host="/"
+                               port="5672"
+                               username="notifier"
+                               password="notifier"/>
+
+    <rabbit:admin connection-factory="connectionFactory"/>
+
+    <rabbit:template id="rabbitTemplate"
+                     connection-factory="connectionFactory"
+                     exchange="notify-exchange"
+                     routing-key="notify"
+                     message-converter="messageConverter"
+                     encoding="UTF-8"/>
+
+    <rabbit:queue name="notify-queue" durable="true">
+        <rabbit:queue-arguments>
+            <entry key="x-message-ttl" value="30000" value-type="java.lang.Long"/>
+        </rabbit:queue-arguments>
+    </rabbit:queue>
+
+    <rabbit:direct-exchange name="notify-exchange">
+        <rabbit:bindings>
+            <rabbit:binding key="notify" queue="notify-queue"/>
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <bean id="messageConverter" class="org.springframework.amqp.support.converter.Jackson2JsonMessageConverter"/>
+
+    <rabbit:listener-container connection-factory="connectionFactory"
+                               message-converter="messageConverter"
+                               acknowledge="manual">
+        <rabbit:listener  ref="messageListener" method="listen" queue-names="notify-queue"/>
+    </rabbit:listener-container>
+
+    <bean id="messageSender" class="com.shawn.test.rabbit.MessageSender"/>
+
+    <bean id="messageListener" class="com.shawn.test.rabbit.MessageListener"/>
+
+</beans>
